@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -10,14 +10,13 @@ const client = new Client({
     ]
 });
 
-// قواعد بيانات وهمية في الذاكرة (للتجربة المحلية وسرعة الأداء)
+// قاعدة بيانات وهمية مؤقتة لليفلات
 const xpDatabase = new Map();
 
 client.once('ready', async () => {
     console.log(`🚀 البوت الخارق جاهز ومنافس لبروبوت: ${client.user.tag}`);
     client.user.setActivity('/help | نظام متكامل 🛡️', { type: ActivityType.Listening });
 
-    // تسجيل كافة أوامر بروبوت الحديثة
     const commands = [
         { name: 'help', description: 'عرض قائمة الأوامر الشاملة للبوت 🛠️' },
         { name: 'user', description: 'عرض معلومات حسابك بالتفصيل 👤' },
@@ -33,7 +32,7 @@ client.once('ready', async () => {
     console.log('✅ تم تسجيل كافة الأوامر والأنظمة الاحترافية بنجاح!');
 });
 
-// 1. نظام الترحيب المتطور (Welcome System)
+// 1. نظام الترحيب
 client.on('guildMemberAdd', async (member) => {
     const channel = member.guild.channels.cache.find(ch => ch.name.includes('welcome') || ch.name.includes('الترحيب'));
     if (!channel) return;
@@ -47,24 +46,23 @@ client.on('guildMemberAdd', async (member) => {
     channel.send({ embeds: [embed] });
 });
 
-// 2. نظام التفاعل، الليفلات، ونظام الخط التلقائي (Levels & Auto-Line)
+// 2. نظام الخط التلقائي والليفلات
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    // أ) نظام الخط التلقائي في رومات الصور أو المنشورات
+    // الخط التلقائي
     if (message.channel.name.includes('صور') || message.channel.name.includes('media') || message.channel.name.includes('خط')) {
-        // يمكنكِ وضع رابط خط السيرفر الخاص بكِ هنا
         message.channel.send('https://discordapp.com').catch(() => {});
     }
 
-    // ب) نظام حساب النقاط والليفلات (XP)
+    // الليفلات
     const userId = message.author.id;
     if (!xpDatabase.has(userId)) {
         xpDatabase.set(userId, { xp: 0, level: 1 });
     }
 
     const userData = xpDatabase.get(userId);
-    userData.xp += Math.floor(Math.random() * 10) + 5; // يعطي ما بين 5 إلى 15 نقطة لكل رسالة
+    userData.xp += Math.floor(Math.random() * 10) + 5;
 
     const nextLevelXp = userData.level * 100;
     if (userData.xp >= nextLevelXp) {
@@ -75,12 +73,11 @@ client.on('messageCreate', async (message) => {
     xpDatabase.set(userId, userData);
 });
 
-// 3. الاستجابة لجميع الأوامر (Interaction Management)
+// 3. الاستجابة للأوامر المائلة
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const { commandName, options } = interaction;
 
-    // أمر المساعدة المطور
     if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
@@ -93,7 +90,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ embeds: [embed] });
     }
 
-    // أمر معلومات الحساب
     if (commandName === 'user') {
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
@@ -106,7 +102,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ embeds: [embed] });
     }
 
-    // أمر معلومات السيرفر
     if (commandName === 'server') {
         const embed = new EmbedBuilder()
             .setColor('#FFFF00')
@@ -118,7 +113,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ embeds: [embed] });
     }
 
-    // أمر مسح الشات
     if (commandName === 'clear') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: '❌ لا تملك صلاحية!', ephemeral: true });
         const amount = options.getInteger('عدد');
@@ -126,7 +120,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `🧹 تم مسح **${amount}** رسالة بنجاح!`, ephemeral: true });
     }
 
-    // أمر البان (الحظر)
     if (commandName === 'ban') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: '❌ لا تملك صلاحية الحظر!', ephemeral: true });
         const user = options.getUser('عضو');
@@ -135,7 +128,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `🔨 تم حظر <@${user.id}> بنجاح. السبب: ${reason}` });
     }
 
-    // أمر الكيك (الطرد)
     if (commandName === 'kick') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: '❌ لا تملك صلاحية الطرد!', ephemeral: true });
         const member = options.getMember('عضو');
@@ -144,20 +136,18 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `🚪 تم طرد <@${member.id}> بنجاح. السبب: ${reason}` });
     }
 
-    // أمر عرض اللفل (Rank)
     if (commandName === 'rank') {
         const data = xpDatabase.get(interaction.user.id) || { xp: 0, level: 1 };
         await interaction.reply({ content: `📊 **بطاقة تفاعلك:**\nالمستوى الحالي: **${data.level}**\nنقاط الخبرة (XP): **${data.xp}/${data.level * 100}**` });
     }
 
-    // أمر تجهيز نظام التذاكر (Ticket Setup)
     if (commandName === 'setup-ticket') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ هذا الأمر للمسؤولين فقط!', ephemeral: true });
         
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
             .setTitle('🎫 مركز الدعم الفني والتذاكر')
-            .setDescription('إذا كنت بحاجة إلى مساعدة أو ترغب بالتواصل مع الإدارة، اضغط على الزر بالأسفل لفتح تذكرة خاصة بك.');
+            .setDescription('إذا كنت بحاجة إلى مساعدة، اضغط على الزر بالأسفل لفتح تذكرة خاصة بك.');
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -170,18 +160,15 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// 4. نظام إدارة التذاكر التفاعلي (Ticket Logic)
+// 4. نظام أزرار التذاكر
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
     if (interaction.customId === 'open_ticket') {
         const channelName = `ticket-${interaction.user.username}`;
-        
-        // منع العضو من فتح أكثر من تذكرة بنفس الوقت
         const existingChannel = interaction.guild.channels.cache.find(ch => ch.name === channelName.toLowerCase());
         if (existingChannel) return interaction.reply({ content: '⚠️ لديك تذكرة مفتوحة بالفعل هنا: ' + `<#${existingChannel.id}>`, ephemeral: true });
 
-        // إنشاء روم التذكرة ومنع بقية الأعضاء من رؤيته
         const ticketChannel = await interaction.guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
@@ -194,7 +181,7 @@ client.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
             .setTitle(`🎫 تذكرة جديدة: ${interaction.user.username}`)
-            .setDescription('أهلاً بك، يرجى كتابة مشكلتك هنا وسيقوم فريق الإدارة بالرد عليك في أقرب وقت.');
+            .setDescription('أهلاً بك، يرجى كتابة مشكلتك هنا وسيقوم فريق الإدارة بالرد عليك.');
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -207,3 +194,10 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `✅ تم إنشاء تذكرتك بنجاح: <#${ticketChannel.id}>`, ephemeral: true });
     }
 
+    if (interaction.customId === 'close_ticket') {
+        await interaction.reply({ content: '🔒 سيتم إغلاق وحذف هذه التذكرة خلال 5 ثوانٍ...' });
+        setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN);
