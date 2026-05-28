@@ -1,5 +1,12 @@
 require('dotenv').config();
+const http = require('http'); // ركزي هنا: نظام خداع بورت الاستضافة
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+
+// تشغيل سيرفر وهمي لمنع الـ Timed Out في Render
+http.createServer((req, res) => {
+    res.write("Bot is Alive!");
+    res.end();
+}).listen(process.env.PORT || 10000);
 
 const client = new Client({
     intents: [
@@ -215,7 +222,3 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (commandName === 'server') {
-        await interaction.reply({ content: `📊 **معلومات سيرفر ${interaction.guild.name}:**\nعدد الأعضاء الكلي الحالي: ${interaction.guild.memberCount}` });
-    }
-
-    if (commandName === 'clear') {
