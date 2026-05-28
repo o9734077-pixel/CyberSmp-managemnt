@@ -1,18 +1,16 @@
 {
-  "name": "my-bot",
+  "name": "cybersmp-management",
   "version": "1.0.0",
-  "description": "",
+  "description": "Discord Bot with Quran, Voice, and Management systems",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "axios": "^1.16.1",
-    "discord.js": "^14.26.4",
-    "dotenv": "^17.4.2"
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "@discordjs/voice": "^0.16.0",
+    "opusscript": "^0.0.8",
+    "ffmpeg-static": "^5.2.0"
   }
 }
