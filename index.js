@@ -6,33 +6,72 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates 
     ]
 });
 
-// قاعدة بيانات وهمية مؤقتة لليفلات
+// Mock databases stored in memory
 const xpDatabase = new Map();
+const tempVoiceChannels = new Map(); 
+const startTime = Date.now(); 
 
+// Memes configuration array
+const memesList = [
+    "لما تسوي بوت ديسكورد ويشتغل من أول مرة بدون خطأ: 😎👑",
+    "المبرمجين لما يشوفوا كود شغال ومحد يدري ليه شغال: 🤫😂",
+    "لما تكتب كود 500 سطر وتنسى نقطة فاصلة وينفجر السيرفر: 💀",
+    "بروبوت لما يشوف البوت حقك صار أونلاين ومنافس له: 👁️👄👁️"
+];
+
+// Smart Auto-Replies Configuration
+const autoReplies = {
+    "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته، نورت السيرفر! ✨",
+    "باك": "ولكم باك يا منور، ارحب! 👋",
+    "بروبوت": "بروبوت من الماضي، الحين أنت في عصر البوت الخارق الجديد! 😉",
+    "القرآن": "💡 تفضل استمع للقرآن الكريم: https://tvquran.com"
+};
+
+// 1. Client Initialization & Global Slash Commands Registration
 client.once('ready', async () => {
     console.log(`🚀 البوت الخارق جاهز ومنافس لبروبوت: ${client.user.tag}`);
-    client.user.setActivity('/help | نظام متكامل 🛡️', { type: ActivityType.Listening });
+    client.user.setActivity('/help | أنظمة خارقة 🛡️', { type: ActivityType.Listening });
 
     const commands = [
         { name: 'help', description: 'عرض قائمة الأوامر الشاملة للبوت 🛠️' },
         { name: 'user', description: 'عرض معلومات حسابك بالتفصيل 👤' },
         { name: 'server', description: 'إحصائيات ومعلومات السيرفر بالكامل 📊' },
         { name: 'clear', description: 'تنظيف رسائل الشات بسرعة (للإدارة)', options: [{ name: 'عدد', type: 4, description: 'عدد الرسائل', required: true }] },
-        { name: 'ban', description: 'حظر عضو من السيرفر 🔨', options: [{ name: 'عضو', type: 6, description: 'العضو المراد حظره', required: true }, { name: 'السبب', type: 3, description: 'سبب الحظر' }] },
-        { name: 'kick', description: 'طرد عضو من السيرفر 🚪', options: [{ name: 'عضو', type: 6, description: 'العضو المراد طرده', required: true }, { name: 'السبب', type: 3, description: 'سبب الطرد' }] },
         { name: 'rank', description: 'عرض مستوى تفاعلك وبطاقتك (Level) 📊' },
-        { name: 'setup-ticket', description: 'إنشاء رسالة نظام التذاكر (الدعم الفني) 🎫' }
+        { name: 'setup-ticket', description: 'إنشاء رسالة نظام التذاكر (الدعم الفني) 🎫' },
+        { name: 'status', description: 'عرض حالة الاستضافة ومدة تشغيل البوت (Uptime) 🟢' },
+        { name: 'meme', description: 'ضحك وميمز عشوائية لتنشيط الشات 🎭' },
+        { name: 'time', description: 'عرض الوقت والتاريخ الحالي بدقة عالية ⏰📅' },
+        { 
+            name: 'mute', 
+            description: 'كتم عضو في السيرفر ومنعه من الكتابة والحديث 🔇',
+            options: [
+                { name: 'عضو', type: 6, description: 'العضو المراد كتمه', required: true },
+                { name: 'المدة', type: 4, description: 'المدة بالدقائق', required: true },
+                { name: 'السبب', type: 3, description: 'سبب الكتم', required: false }
+            ]
+        },
+        {
+            name: 'unmute',
+            description: 'فك الكتم عن عضو في السيرفر وإعادة صلاحياته 🔊',
+            options: [{ name: 'عضو', type: 6, description: 'العضو المراد فك الكتم عنه', required: true }]
+        }
     ];
 
-    await client.application.commands.set(commands);
-    console.log('✅ تم تسجيل كافة الأوامر والأنظمة الاحترافية بنجاح!');
+    try {
+        await client.application.commands.set(commands);
+        console.log('✅ تم تحديث الأوامر والأنظمة الجديدة بنجاح!');
+    } catch (error) {
+        console.error('Error deploying commands:', error);
+    }
 });
 
-// 1. نظام الترحيب
+// 2. Modernized Welcome System
 client.on('guildMemberAdd', async (member) => {
     const channel = member.guild.channels.cache.find(ch => ch.name.includes('welcome') || ch.name.includes('الترحيب'));
     if (!channel) return;
@@ -43,19 +82,26 @@ client.on('guildMemberAdd', async (member) => {
         .setDescription(`أهلاً بك <@${member.id}> في سيرفر **${member.guild.name}**!\n\nأنت العضو رقم **${member.guild.memberCount}** 🎉`)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
-    channel.send({ embeds: [embed] });
+        
+    channel.send({ embeds: [embed] }).catch(() => {});
 });
 
-// 2. نظام الخط التلقائي والليفلات
+// 3. Automated Messaging Features (Auto-Reply, Lines, XP Engine)
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
-    // الخط التلقائي
+    // A) Intelligent Auto-Reply Handler
+    const text = message.content.trim();
+    if (autoReplies[text]) {
+        return message.reply(autoReplies[text]).catch(() => {});
+    }
+
+    // B) Automatic Decorative Line Generator
     if (message.channel.name.includes('صور') || message.channel.name.includes('media') || message.channel.name.includes('خط')) {
         message.channel.send('https://discordapp.com').catch(() => {});
     }
 
-    // الليفلات
+    // C) Interactive Leveling & Experience Matrix
     const userId = message.author.id;
     if (!xpDatabase.has(userId)) {
         xpDatabase.set(userId, { xp: 0, level: 1 });
@@ -68,136 +114,108 @@ client.on('messageCreate', async (message) => {
     if (userData.xp >= nextLevelXp) {
         userData.level++;
         userData.xp = 0;
-        message.reply(`🎉 مبروك يا <@${userId}>! لقد ارتفع مستواك إلى **المستوى ${userData.level}** 🚀`).then(m => setTimeout(() => m.delete(), 5000));
+        message.reply(`🎉 مبروك يا <@${userId}>! لقد ارتفع مستواك إلى **المستوى ${userData.level}** 🚀`)
+            .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+            .catch(() => {});
     }
     xpDatabase.set(userId, userData);
 });
 
-// 3. الاستجابة للأوامر المائلة
+// 4. Advanced Temporary Voice Infrastructure (Temp Voice)
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const user = newState.member.user;
+    const guild = newState.guild;
+
+    // Trigger Room Construction Engine
+    if (newState.channel && (newState.channel.name.includes('إنشاء روم') || newState.channel.name.includes('create voice') || newState.channel.name.includes('tempvoice'))) {
+        try {
+            const voiceChannel = await guild.channels.create({
+                name: `🎙️ | روم ${user.username}`,
+                type: ChannelType.GuildVoice,
+                parent: newState.channel.parentId,
+                permissionOverwrites: [
+                    {
+                        id: user.id,
+                        allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers]
+                    }
+                ]
+            });
+
+            await newState.member.voice.setChannel(voiceChannel);
+            tempVoiceChannels.set(voiceChannel.id, user.id);
+        } catch (error) {
+            console.error('Error generating temporary room:', error);
+        }
+    }
+
+    // Automated Empty Channel Cleanup Loop
+    if (oldState.channel) {
+        const channelId = oldState.channel.id;
+        if (tempVoiceChannels.has(channelId)) {
+            if (oldState.channel.members.size === 0) {
+                try {
+                    await oldState.channel.delete();
+                    tempVoiceChannels.delete(channelId);
+                } catch (error) {
+                    console.error('Error cleaning up empty temporary channel:', error);
+                }
+            }
+        }
+    }
+});
+
+// 5. Global Slash Interaction Processing Matrix
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const { commandName, options } = interaction;
 
+    // Central Command Hub
     if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('🛠️ قائمة أوامر البوت الخارق (المنافس لبروبوت)')
+            .setTitle('🛠️ لوحة التحكم الشاملة للأنظمة')
             .addFields(
-                { name: '👤 الأوامر العامة:', value: '`/user` - `/server` - `/rank`' },
-                { name: '🔨 الأوامر الإدارية:', value: '`/clear` - `/ban` - `/kick`' },
-                { name: '🎫 أنظمة متطورة:', value: '`/setup-ticket` (لإنشاء نظام تذاكر ودعم فني)' }
+                { name: '👤 أوامر عامة ومسلية:', value: '`/user` - `/server` - `/rank` - `/meme` - `/time`' },
+                { name: '⚙️ حالة الاستضافة والتشغيل:', value: '`/status`' },
+                { name: '🔨 أنظمة إدارية متطورة:', value: '`/clear` - `/mute` - `/unmute` - `/setup-ticket`' },
+                { name: '🎤 نظام غرف الصوت المؤقتة:', value: 'قم بإنشاء روم صوتي عادي بسيرفرك وسمّه الحروف: `إنشاء روم` وشاهد السحر!' },
+                { name: '🤖 الردود التلقائية:', value: '`السلام عليكم` - `باك` - `بروبوت`' }
             );
         await interaction.reply({ embeds: [embed] });
     }
 
-    if (commandName === 'user') {
-        const embed = new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle(`👤 معلومات حساب: ${interaction.user.username}`)
-            .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                { name: 'ID الحساب:', value: interaction.user.id, inline: true },
-                { name: 'تاريخ الإنشاء:', value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`, inline: true }
-            );
-        await interaction.reply({ embeds: [embed] });
-    }
-
-    if (commandName === 'server') {
-        const embed = new EmbedBuilder()
-            .setColor('#FFFF00')
-            .setTitle(`📊 إحصائيات سيرفر ${interaction.guild.name}`)
-            .addFields(
-                { name: 'الأعضاء:', value: `${interaction.guild.memberCount}`, inline: true },
-                { name: 'المالك:', value: `<@${interaction.guild.ownerId}>`, inline: true }
-            );
-        await interaction.reply({ embeds: [embed] });
-    }
-
-    if (commandName === 'clear') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: '❌ لا تملك صلاحية!', ephemeral: true });
-        const amount = options.getInteger('عدد');
-        await interaction.channel.bulkDelete(amount, true);
-        await interaction.reply({ content: `🧹 تم مسح **${amount}** رسالة بنجاح!`, ephemeral: true });
-    }
-
-    if (commandName === 'ban') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) return interaction.reply({ content: '❌ لا تملك صلاحية الحظر!', ephemeral: true });
-        const user = options.getUser('عضو');
-        const reason = options.getString('السبب') || 'بدون سبب';
-        await interaction.guild.members.ban(user, { reason });
-        await interaction.reply({ content: `🔨 تم حظر <@${user.id}> بنجاح. السبب: ${reason}` });
-    }
-
-    if (commandName === 'kick') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) return interaction.reply({ content: '❌ لا تملك صلاحية الطرد!', ephemeral: true });
-        const member = options.getMember('عضو');
-        const reason = options.getString('السبب') || 'بدون سبب';
-        await member.kick(reason);
-        await interaction.reply({ content: `🚪 تم طرد <@${member.id}> بنجاح. السبب: ${reason}` });
-    }
-
-    if (commandName === 'rank') {
-        const data = xpDatabase.get(interaction.user.id) || { xp: 0, level: 1 };
-        await interaction.reply({ content: `📊 **بطاقة تفاعلك:**\nالمستوى الحالي: **${data.level}**\nنقاط الخبرة (XP): **${data.xp}/${data.level * 100}**` });
-    }
-
-    if (commandName === 'setup-ticket') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ هذا الأمر للمسؤولين فقط!', ephemeral: true });
+    // Moderation: Advanced Mute Functionality
+    if (commandName === 'mute') {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: '❌ لا تمتلك صلاحية إدارة الأعضاء!', ephemeral: true });
+        const targetMember = options.getMember('عضو');
+        const durationMinutes = options.getInteger('المدة');
+        const reason = options.getString('السبب') || 'لم يتم تحديد سبب الكتم';
         
-        const embed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setTitle('🎫 مركز الدعم الفني والتذاكر')
-            .setDescription('إذا كنت بحاجة إلى مساعدة، اضغط على الزر بالأسفل لفتح تذكرة خاصة بك.');
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_ticket')
-                .setLabel('فتح تذكرة 📩')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await interaction.reply({ embeds: [embed], components: [row] });
-    }
-});
-
-// 4. نظام أزرار التذاكر
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    if (interaction.customId === 'open_ticket') {
-        const channelName = `ticket-${interaction.user.username}`;
-        const existingChannel = interaction.guild.channels.cache.find(ch => ch.name === channelName.toLowerCase());
-        if (existingChannel) return interaction.reply({ content: '⚠️ لديك تذكرة مفتوحة بالفعل هنا: ' + `<#${existingChannel.id}>`, ephemeral: true });
-
-        const ticketChannel = await interaction.guild.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            permissionOverwrites: [
-                { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
-            ]
-        });
-
-        const embed = new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle(`🎫 تذكرة جديدة: ${interaction.user.username}`)
-            .setDescription('أهلاً بك، يرجى كتابة مشكلتك هنا وسيقوم فريق الإدارة بالرد عليك.');
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('close_ticket')
-                .setLabel('إغلاق التذكرة 🔒')
-                .setStyle(ButtonStyle.Danger)
-        );
-
-        await ticketChannel.send({ content: `<@${interaction.user.id}> | فريق الدعم`, embeds: [embed], components: [row] });
-        await interaction.reply({ content: `✅ تم إنشاء تذكرتك بنجاح: <#${ticketChannel.id}>`, ephemeral: true });
+        if (!targetMember || !targetMember.moderatable) return interaction.reply({ content: '❌ لا يمكنني كتم هذا العضو!', ephemeral: true });
+        
+        await targetMember.timeout(durationMinutes * 60 * 1000, reason);
+        await interaction.reply({ content: `🔇 تم كتم <@${targetMember.id}> لمدة ${durationMinutes} دقيقة. السبب: ${reason}` });
     }
 
-    if (interaction.customId === 'close_ticket') {
-        await interaction.reply({ content: '🔒 سيتم إغلاق وحذف هذه التذكرة خلال 5 ثوانٍ...' });
-        setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+    // Moderation: Unmute Execution
+    if (commandName === 'unmute') {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: '❌ لا تمتلك الصلاحية!', ephemeral: true });
+        const targetMember = options.getMember('عضو');
+        
+        if (!targetMember || !targetMember.communicationDisabledUntilTimestamp) return interaction.reply({ content: '⚠️ العضو ليس مكتوماً!', ephemeral: true });
+        
+        await targetMember.timeout(null);
+        await interaction.reply({ content: `🔊 تم فك الكتم بنجاح عن <@${targetMember.id}>.` });
     }
-});
 
-client.login(process.env.DISCORD_TOKEN);
+    // Core Metrics Tracking Commands
+    if (commandName === 'time') {
+        const now = new Date();
+        const discordTimestamp = Math.floor(now.getTime() / 1000);
+        await interaction.reply({ content: `⏰ **الوقت الحالي الحي بجهازك:** <t:${discordTimestamp}:F>` });
+    }
+
+    if (commandName === 'status') {
+        const totalUptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
+        const hours = Math.floor(totalUptimeSeconds / 3600);
+        const minutes = Math.floor((totalUptimeSeconds % 3600) / 60);
