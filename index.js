@@ -12,6 +12,7 @@ client.once('ready', async () => {
     client.user.setActivity('/help | ProBot Mode', { type: ActivityType.Listening });
     const cmds = [
         { name: 'help', description: 'عرض قائمة الأوامر 🛠️' },
+        { name: 'quran', description: 'الاستماع للقرآن الكريم كاملاً وإذاعات الراديو 🕋✨' },
         { name: 'user', description: 'معلومات حسابك 👤' },
         { name: 'server', description: 'إحصائيات السيرفر 📊' },
         { name: 'clear', description: 'مسح رسائل الشات', options: [{ name: 'عدد', type: 4, description: 'عدد الرسائل', required: true }] },
@@ -28,9 +29,14 @@ client.once('ready', async () => {
 
 client.on('messageCreate', async (msg) => {
     if (msg.author.bot || !msg.guild) return;
-    if (msg.content === "السلام عليكم") return msg.reply("وعليكم السلام ورحمة الله وبركاته، نورت! ✨");
+    if (msg.content === "السلام عليكم") return msg.reply("وعلي وعليكم السلام ورحمة الله وبركاته، نورت! ✨");
     if (msg.content === "باك") return msg.reply("ولكم باك يا منور! 👋");
-    if (msg.channel.name.includes('صور') || msg.channel.name.includes('خط')) msg.channel.send('https://discordapp.com').catch(()=>{});
+    
+    // نظام الخط التلقائي المحدث برابط صورتكِ المتحركة الجديدة المطلوبة 🎥✨
+    const chName = msg.channel.name.toLowerCase();
+    if (chName.includes('صور') || chName.includes('خط') || chName.includes('media') || chName.includes('أخبار') || chName.includes('اخبار') || chName.includes('news')) {
+        msg.channel.send('https://media.discordapp.net/attachments/932674509461401600/932682689490866176/9.gif').catch(()=>{});
+    }
     
     const uid = msg.author.id; if (!xpDatabase.has(uid)) xpDatabase.set(uid, { xp: 0, level: 1 });
     const uData = xpDatabase.get(uid); uData.xp += 10;
@@ -54,15 +60,30 @@ client.on('voiceStateUpdate', async (oldSt, newSt) => {
 client.on('interactionCreate', async (i) => {
     if (i.isChatInputCommand()) {
         const { commandName: cmd, options: opts } = i;
-        if (cmd === 'help') await i.reply({ embeds: [new EmbedBuilder().setColor('#5865F2').setTitle('🛠️ الأوامر المتاحة').setDescription(' العامة: `/user` - `/server` - `/rank` - `/meme` - `/time` \n الإدارية: `/clear` - `/mute` - `/unmute` - `/setup-ticket`')] });
+        if (cmd === 'help') await i.reply({ embeds: [new EmbedBuilder().setColor('#5865F2').setTitle('🛠️ الأوامر المتاحة').setDescription(' العامة: `/user` - `/server` - `/rank` - `/meme` - `/time` - `/quran` \n الإدارية: `/clear` - `/mute` - `/unmute` - `/setup-ticket`')] });
         if (cmd === 'time') await i.reply({ content: `⏰ **الوقت الحالي:** <t:${Math.floor(Date.now()/1000)}:F>` });
         if (cmd === 'meme') await i.reply({ content: `🎭 **ميمز:** بروبوت لما يشوف البوت حقك صار أونلاين ومنافس له: 👁️👄👁️` });
         if (cmd === 'user') await i.reply({ content: `👤 اسم الحساب: ${i.user.username}\nID: ${i.user.id}` });
         if (cmd === 'server') await i.reply({ content: `📊 عدد أعضاء السيرفر: ${i.guild.memberCount}` });
         if (cmd === 'rank') { const d = xpDatabase.get(i.user.id) || { xp: 0, level: 1 }; await i.reply({ content: `📊 المستوى: **${d.level}** | الـ XP: **${d.xp}/${d.level * 100}**` }); }
         if (cmd === 'clear') { if (!i.member.permissions.has(PermissionFlagsBits.ManageMessages)) return i.reply({ content: '❌ لا تملك صلاحية!', ephemeral: true }); await i.channel.bulkDelete(opts.getInteger('عدد'), true); await i.reply({ content: `🧹 تم مسح الرسائل بنجاح!`, ephemeral: true }); }
-        if (cmd === 'setup-ticket') { if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) return i.reply({ content: '❌ للمسؤولين فقط!', ephemeral: true }); await i.reply({ embeds: [new EmbedBuilder().setColor('#5865F2').setTitle('🎫 مركز التذاكر').setDescription('اضغط لفتح تذكرة')], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('t_open').setLabel('فتح تذكرة 📩').setStyle(ButtonStyle.Primary))] }); }
         if (cmd === 'status') { const ups = Math.floor((Date.now() - startTime)/1000); await i.reply({ content: `🟢 البوت مستقر أونلاين في السحاب ☁️\n⏱️ مدة التشغيل الحالية: ${Math.floor(ups/3600)} ساعة و ${Math.floor((ups%3600)/60)} دقيقة.` }); }
+        
+        if (cmd === 'quran') {
+            const quranEmbed = new EmbedBuilder()
+                .setColor('#00563B')
+                .setTitle('🕋 بوابة القرآن الكريم وإذاعات الراديو')
+                .setDescription('اضغطي على أي زر بالأسفل لفتح الرابط المباشر والاستماع فوراً بجودة عالية:');
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setLabel('المصحف كاملاً 📖').setStyle(ButtonStyle.Link).setURL('https://tvquran.com'),
+                new ButtonBuilder().setLabel('إذاعة القرآن الحية 📻').setStyle(ButtonStyle.Link).setURL('https://ddns.net'),
+                new ButtonBuilder().setLabel('سورة البقرة مكررة 🛡️').setStyle(ButtonStyle.Link).setURL('https://tvquran.comar/playlist/37')
+            );
+            await i.reply({ embeds: [quranEmbed], components: [row] });
+        }
+
+        if (cmd === 'setup-ticket') { if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) return i.reply({ content: '❌ للمسؤولين فقط!', ephemeral: true }); await i.reply({ embeds: [new EmbedBuilder().setColor('#5865F2').setTitle('🎫 مركز التذاكر').setDescription('اضغط لفتح تذكرة')], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('t_open').setLabel('فتح تذكرة 📩').setStyle(ButtonStyle.Primary))] }); }
         if (cmd === 'mute') {
             if (!i.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return i.reply({ content: '❌ لا تملك صلاحية!', ephemeral: true });
             const target = opts.getMember('عضو'); if (!target || !target.moderatable) return i.reply({ content: '❌ لا يمكن كتمه!', ephemeral: true });
