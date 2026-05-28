@@ -1,67 +1,8 @@
 require('dotenv').config();
 const http = require('http');
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
-
-http.createServer((req, res) => { res.write("Bot Alive"); res.end(); }).listen(process.env.PORT || 10000);
-
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates] });
-const xpDatabase = new Map(); const tempVoiceChannels = new Map(); const startTime = Date.now(); let player;
-
-client.once('ready', async () => {
-    console.log(`🚀 Ready: ${client.user.tag}`);
-    client.user.setActivity('/help | ProBot Mode', { type: ActivityType.Listening });
-    const cmds = [
-        { name: 'help', description: 'عرض قائمة الأوامر 🛠️' },
-        { name: 'quran', description: 'روابط الاستماع للقرآن الكريم 🕋' },
-        { name: 'play-quran', description: 'تشغيل راديو القرآن الكريم بالروم الصوتي 📻' },
-        { name: 'stop-quran', description: 'إيقاف تشغيل القرآن ومغادرة الروم 🛑' },
-        { name: 'user', description: 'معلومات حسابك 👤' },
-        { name: 'server', description: 'إحصائيات السيرفر 📊' },
-        { name: 'clear', description: 'مسح رسائل الشات', options: [{ name: 'عدد', type: 4, description: 'عدد الرسائل', required: true }] },
-        { name: 'rank', description: 'عرض مستواك وبطاقتك 📊' },
-        { name: 'setup-ticket', description: 'إنشاء نظام التذاكر 🎫' },
-        { name: 'status', description: 'حالة الاستضافة والـ Uptime 🟢' },
-        { name: 'meme', description: 'ميمز عشوائية 🎭' },
-        { name: 'time', description: 'عرض الوقت والتاريخ ⏰' },
-        { name: 'mute', description: 'كتم عضو', options: [{ name: 'عضو', type: 6, description: 'العضو', required: true }, { name: 'المدة', type: 4, description: 'المدة بالدقائق', required: true }, { name: 'السبب', type: 3, description: 'السبب', required: false }] },
-        { name: 'unmute', description: 'فك كتم عضو', options: [{ name: 'عضو', type: 6, description: 'العضو', required: true }] }
-    ];
-    await client.application.commands.set(cmds);
-});
-
-client.on('messageCreate', async (msg) => {
-    if (msg.author.bot || !msg.guild) return;
-    if (msg.content === "السلام عليكم") return msg.reply("وعليكم السلام ورحمة الله وبركاته، نورت! ✨");
-    if (msg.content === "باك") return msg.reply("ولكم باك يا منور! 👋");
-    const ch = msg.channel.name.toLowerCase();
-    if (ch.includes('صور') || ch.includes('خط') || ch.includes('media') || ch.includes('أخبار') || ch.includes('اخبار')) {
-        msg.channel.send('https://discordapp.net').catch(()=>{});
-    }
-    const uid = msg.author.id; if (!xpDatabase.has(uid)) xpDatabase.set(uid, { xp: 0, level: 1 });
-    const u = xpDatabase.get(uid); u.xp += 10;
-    if (u.xp >= u.level * 100) { u.level++; u.xp = 0; msg.reply(`🎉 مبروك لفل أب! وصلت مستوى **${u.level}**`).then(m => setTimeout(() => m.delete().catch(()=>{}), 5000)); }
-    xpDatabase.set(uid, u);
-});
-
-client.on('voiceStateUpdate', async (oldSt, newSt) => {
-    const user = newSt.member.user; const guild = newSt.guild;
-    if (newSt.channel && (newSt.channel.name.includes('إنشاء روم') || newSt.channel.name.includes('tempvoice'))) {
-        try {
-            const vc = await guild.channels.create({ name: `🎙️ | روم ${user.username}`, type: ChannelType.GuildVoice, parent: newSt.channel.parentId, permissionOverwrites: [{ id: user.id, allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers] }] });
-            await newSt.member.voice.setChannel(vc); tempVoiceChannels.set(vc.id, user.id);
-        } catch (e) {}
-    }
-    if (oldSt.channel && tempVoiceChannels.has(oldSt.channel.id) && oldSt.channel.members.size === 0) {
-        try { await oldSt.channel.delete(); tempVoiceChannels.delete(oldSt.channel.id); } catch (e) {}
-    }
-});
-require('dotenv').config();
-const http = require('http');
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, NoSubscriberBehavior } = require('@discordjs/voice');
 
-// فتح سيرفر وهمي للحفاظ على استقرار البوت في Render
 http.createServer((req, res) => { res.write("Bot Alive"); res.end(); }).listen(process.env.PORT || 10000);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates] });
@@ -128,35 +69,17 @@ client.on('interactionCreate', async (i) => {
         if (cmd === 'clear') { if (!i.member.permissions.has(PermissionFlagsBits.ManageMessages)) return i.reply({ content: '❌ لا تملك صلاحية!', ephemeral: true }); await i.channel.bulkDelete(opts.getInteger('عدد'), true); return await i.reply({ content: `🧹 تم مسح الرسائل!`, ephemeral: true }); }
         if (cmd === 'status') { const ups = Math.floor((Date.now() - startTime)/1000); return await i.reply({ content: `🟢 أونلاين في السحاب ☁️\n⏱️ مدة التشغيل الحالية: ${Math.floor(ups/3600)} ساعة و ${Math.floor((ups%3600)/60)} دقيقة.` }); }
         
-        // تعديل الرد الفوري الذكي لمنع إنفجار البوت وتسريع تشغيل الصوت 📻🔊
         if (cmd === 'play-quran') {
-            const vc = i.member.voice.channel; 
-            if (!vc) return i.reply({ content: '❌ يجب أن تكون في روم صوتي أولاً!', ephemeral: true });
-            
-            // رد فوري مؤقت في أجزاء من الثانية لحماية الجلسة وتمديد الوقت
+            const vc = i.member.voice.channel; if (!vc) return i.reply({ content: '❌ يجب أن تكون في روم صوتي أولاً!', ephemeral: true });
             await i.reply({ content: '🔄 جاري الاتصال بالروم وتشغيل بث القرآن الكريم الفخم...' }); 
-            
             try {
-                const conn = joinVoiceChannel({ 
-                    channelId: vc.id, 
-                    guildId: i.guild.id, 
-                    adapterCreator: i.guild.voiceAdapterCreator,
-                    selfDeaf: false
-                });
-                
+                const conn = joinVoiceChannel({ channelId: vc.id, guildId: i.guild.id, adapterCreator: i.guild.voiceAdapterCreator, selfDeaf: false });
                 player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
                 const resource = createAudioResource('https://quran.com.sa', { inlineVolume: true });
                 resource.volume.setVolume(1.0); 
-
-                player.play(resource);
-                conn.subscribe(player); 
-                
-                // تعديل الرسالة بعد أن يشتغل الصوت بنجاح تام
+                player.play(resource); conn.subscribe(player); 
                 return await i.editReply({ content: `📻 **تم تشغيل إذاعة القرآن الكريم بنجاح الفائق!**\nالبوت متصل ومنور الحين في <#${vc.id}> والصوت شغال بنقاء تام.` });
-            } catch (e) { 
-                console.error(e);
-                return await i.editReply({ content: '❌ حدث خطأ أثناء محاولة بث الصوت، يرجى المحاولة مجدداً.' }); 
-            }
+            } catch (e) { return await i.editReply({ content: '❌ حدث خطأ أثناء محاولة بث الصوت، يرجى المحاولة مجدداً.' }); }
         }
         
         if (cmd === 'stop-quran') { const conn = joinVoiceChannel({ channelId: i.channel.id, guildId: i.guild.id, adapterCreator: i.guild.voiceAdapterCreator }); if (player) player.stop(); if (conn) conn.destroy(); return await i.reply({ content: '🛑 تم إيقاف تشغيل القرآن الكريم ومغادرة الروم.' }); }
@@ -176,3 +99,4 @@ client.on('interactionCreate', async (i) => {
     if (i.isButton()) {
         if (i.customId === 't_open') {
             const cName = `ticket-${i.user.username}`; if (i.guild.channels.cache.find(ch => ch.name === cName.toLowerCase())) return i.reply({ content: '⚠️ لديك تذكرة مفتوحة بالفعل!', ephemeral: true });
+            const ch = await i.guild.channels.create({ name: cName, type: ChannelType.GuildText, permissionOverwrites: [{ id: i.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, { id: i.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }] });
