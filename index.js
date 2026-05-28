@@ -153,6 +153,149 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         const channelId = oldState.channel.id;
         if (tempVoiceChannels.has(channelId)) {
             if (oldState.channel.members.size === 0) {
+require('dotenv').config();
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates 
+    ]
+});
+
+const xpDatabase = new Map();
+const tempVoiceChannels = new Map(); 
+const startTime = Date.now(); 
+
+const memesList = [
+    "لما تسوي بوت ديسكورد ويشتغل من أول مرة بدون خطأ: 😎👑",
+    "المبرمجين لما يشوفوا كود شغال ومحد يدري ليه شغال: 🤫😂",
+    "لما تكتب كود 500 سطر وتنسى نقطة فاصلة وينفجر السيرفر: 💀",
+    "بروبوت لما يشوف البوت حقك صار أونلاين ومنافس له: 👁️👄👁️"
+];
+
+const autoReplies = {
+    "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته، نورت السيرفر! ✨",
+    "باك": "ولكم باك يا منور، ارحب! 👋",
+    "بروبوت": "بروبوت من الماضي، الحين أنت في عصر البوت الخارق الجديد! 😉",
+    "القرآن": "💡 تفضل استمع للقرآن الكريم: https://tvquran.com"
+};
+
+client.once('ready', async () => {
+    console.log(`🚀 البوت الخارق جاهز ومنافس لبروبوت: ${client.user.tag}`);
+    client.user.setActivity('/help | أنظمة خارقة 🛡️', { type: ActivityType.Listening });
+
+    const commands = [
+        { name: 'help', description: 'عرض قائمة الأوامر الشاملة للبوت 🛠️' },
+        { name: 'user', description: 'عرض معلومات حسابك بالتفصيل 👤' },
+        { name: 'server', description: 'إحصائيات ومعلومات السيرفر بالكامل 📊' },
+        { name: 'clear', description: 'تنظيف رسائل الشات بسرعة (للإدارة)', options: [{ name: 'عدد', type: 4, description: 'عدد الرسائل', required: true }] },
+        { name: 'rank', description: 'عرض مستوى تفاعلك وبطاقتك (Level) 📊' },
+        { name: 'setup-ticket', description: 'إنشاء رسالة نظام التذاكر (الدعم الفني) 🎫' },
+        { name: 'status', description: 'عرض حالة الاستضافة ومدة تشغيل البوت (Uptime) 🟢' },
+        { name: 'meme', description: 'ضحك وميمز عشوائية لتنشيط الشات 🎭' },
+        { name: 'time', description: 'عرض الوقت والتاريخ الحالي بدقة عالية ⏰📅' },
+        { 
+            name: 'mute', 
+            description: 'كتم عضو في السيرفر ومنعه من الكتابة والحديث 🔇',
+            options: [
+                { name: 'عضو', type: 6, description: 'العضو المراد كتمه', required: true },
+                { name: 'المدة', type: 4, description: 'المدة بالدقائق', required: true },
+                { name: 'السبب', type: 3, description: 'سبب الكتم', required: false }
+            ]
+        },
+        {
+            name: 'unmute',
+            description: 'فك الكتم عن عضو في السيرفر وإعادة صلاحياته 🔊',
+            options: [{ name: 'عضو', type: 6, description: 'العضو المراد فك الكتم عنه', required: true }]
+        }
+    ];
+
+    try {
+        await client.application.commands.set(commands);
+        console.log('✅ تم تحديث الأوامر والأنظمة الجديدة بنجاح!');
+    } catch (error) {
+        console.error('Error deploying commands:', error);
+    }
+});
+
+client.on('guildMemberAdd', async (member) => {
+    const channel = member.guild.channels.cache.find(ch => ch.name.includes('welcome') || ch.name.includes('الترحيب'));
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle(`✨ عضو جديد انضم إلينا!`)
+        .setDescription(`أهلاً بك <@${member.id}> في سيرفر **${member.guild.name}**!\n\nأنت العضو رقم **${member.guild.memberCount}** 🎉`)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+        .setTimestamp();
+        
+    channel.send({ embeds: [embed] }).catch(() => {});
+});
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot || !message.guild) return;
+
+    const text = message.content.trim();
+    if (autoReplies[text]) {
+        return message.reply(autoReplies[text]).catch(() => {});
+    }
+
+    if (message.channel.name.includes('صور') || message.channel.name.includes('media') || message.channel.name.includes('خط')) {
+        message.channel.send('https://discordapp.com').catch(() => {});
+    }
+
+    const userId = message.author.id;
+    if (!xpDatabase.has(userId)) {
+        xpDatabase.set(userId, { xp: 0, level: 1 });
+    }
+
+    const userData = xpDatabase.get(userId);
+    userData.xp += Math.floor(Math.random() * 10) + 5;
+
+    const nextLevelXp = userData.level * 100;
+    if (userData.xp >= nextLevelXp) {
+        userData.level++;
+        userData.xp = 0;
+        message.reply(`🎉 مبروك يا <@${userId}>! لقد ارتفع مستواك إلى **المستوى ${userData.level}** 🚀`)
+            .then(m => setTimeout(() => m.delete().catch(() => {}), 5000))
+            .catch(() => {});
+    }
+    xpDatabase.set(userId, userData);
+});
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const user = newState.member.user;
+    const guild = newState.guild;
+
+    if (newState.channel && (newState.channel.name.includes('إنشاء روم') || newState.channel.name.includes('create voice') || newState.channel.name.includes('tempvoice'))) {
+        try {
+            const voiceChannel = await guild.channels.create({
+                name: `🎙️ | روم ${user.username}`,
+                type: ChannelType.GuildVoice,
+                parent: newState.channel.parentId,
+                permissionOverwrites: [
+                    {
+                        id: user.id,
+                        allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers]
+                    }
+                ]
+            });
+
+            await newState.member.voice.setChannel(voiceChannel);
+            tempVoiceChannels.set(voiceChannel.id, user.id);
+        } catch (error) {
+            console.error('Error generating temporary room:', error);
+        }
+    }
+
+    if (oldState.channel) {
+        const channelId = oldState.channel.id;
+        if (tempVoiceChannels.has(channelId)) {
+            if (oldState.channel.members.size === 0) {
                 try {
                     await oldState.channel.delete();
                     tempVoiceChannels.delete(channelId);
@@ -164,12 +307,10 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-// 5. Global Slash Interaction Processing Matrix
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const { commandName, options } = interaction;
 
-    // Central Command Hub
     if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor('#5865F2')
@@ -184,7 +325,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ embeds: [embed] });
     }
 
-    // Moderation: Advanced Mute Functionality
     if (commandName === 'mute') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: '❌ لا تمتلك صلاحية إدارة الأعضاء!', ephemeral: true });
         const targetMember = options.getMember('عضو');
@@ -197,7 +337,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `🔇 تم كتم <@${targetMember.id}> لمدة ${durationMinutes} دقيقة. السبب: ${reason}` });
     }
 
-    // Moderation: Unmute Execution
     if (commandName === 'unmute') {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply({ content: '❌ لا تمتلك الصلاحية!', ephemeral: true });
         const targetMember = options.getMember('عضو');
@@ -208,7 +347,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: `🔊 تم فك الكتم بنجاح عن <@${targetMember.id}>.` });
     }
 
-    // Core Metrics Tracking Commands
     if (commandName === 'time') {
         const now = new Date();
         const discordTimestamp = Math.floor(now.getTime() / 1000);
@@ -219,3 +357,21 @@ client.on('interactionCreate', async (interaction) => {
         const totalUptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
         const hours = Math.floor(totalUptimeSeconds / 3600);
         const minutes = Math.floor((totalUptimeSeconds % 3600) / 60);
+        await interaction.reply({ content: `🟢 **حالة البوت والأداء:** مستقر أونلاين في السحاب ☁\n⏱️ **مدة التشغيل الحالية:** ${hours} ساعة و ${minutes} دقيقة بدون أي انقطاع.` });
+    }
+
+    if (commandName === 'meme') {
+        const randomMeme = memesList[Math.floor(Math.random() * memesList.length)];
+        await interaction.reply({ content: `🎭 **ميمز:** ${randomMeme}` });
+    }
+
+    if (commandName === 'user') {
+        await interaction.reply({ content: `👤 **معلومات حسابك:**\nالاسم: ${interaction.user.username}\nالمعرّف (ID): ${interaction.user.id}` });
+    }
+
+    if (commandName === 'server') {
+        await interaction.reply({ content: `📊 **معلومات سيرفر ${interaction.guild.name}:**\nعدد الأعضاء الكلي الحالي: ${interaction.guild.memberCount}` });
+    }
+
+    if (commandName === 'clear') {
+
