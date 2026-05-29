@@ -1,218 +1,119 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, REST, Routes, SlashCommandBuilder, ActivityType } = require('discord.js');
-const { Rcon } = require('rcon-client'); 
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
 
-// =============================================================
-// 🌐 نظام منع النوم المطور (سيرفر ويب داخلي للاستضافة المجانية)
-// =============================================================
 const app = express();
-app.get('/', (req, res) => {
-    res.send({ status: "Online", uptime: process.uptime(), message: "CyberSMP Ultimate Bot is running 24/7!" });
-});
-app.listen(8080, () => console.log("⚡ [Web Server] Ready on port 8080"));
+app.get('/', (req, res) => res.send({ status: "Online" }));
+app.listen(8080, () => console.log("🌐 Web Server Ready"));
 
-// =============================================================
-// 🤖 إعدادات البوت والـ Intents الأساسية لقراءة البيانات
-// =============================================================
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ]
-});
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers] });
 
-// ذاكرة حفظ البيانات المؤقتة
 const autoLineChannels = new Set(); 
 const autoResponses = new Map();   
-
 const LINE_URL = "https://discordapp.net";
 
-// =============================================================
-// 🚀 تسجيل وإعداد كافة الأوامر الشاملة (Slash Commands)
-// =============================================================
 const commands = [
-    // 1. نظام الأوتو لاين المطور (تفعيل وإلغاء)
-    new SlashCommandBuilder()
-        .setName('auto-line')
-        .setDescription('⚙️ إعدادات نظام الخط التلقائي')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('set')
-                .setDescription('📍 تحديد روم للخط التلقائي')
-                .addChannelOption(option => option.setName('channel').setDescription('اختر الروم المراد تفعيل الخط بها').setRequired(true))
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('remove')
-                .setDescription('❌ إزالة الخط التلقائي من روم')
-                .addChannelOption(option => option.setName('channel').setDescription('اختر الروم المراد إلغاء الخط منها').setRequired(true))
-        ),
-
-    // 2. نظام الرد التلقائي المطور (إضافة وإزالة)
-    new SlashCommandBuilder()
-        .setName('auto-respond')
-        .setDescription('⚙️ إعدادات نظام الرد التلقائي')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('set')
-                .setDescription('➕ إضافة كلمة ورد تلقائي مخصص')
-                .addStringOption(option => option.setName('word').setDescription('الكلمة المفتاحية (مثال: السلام)').setRequired(true))
-                .addStringOption(option => option.setName('reply').setDescription('الرد الذي سيقوم به البوت').setRequired(true))
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('remove')
-                .setDescription('➖ حذف كلمة من الرد التلقائي')
-                .addStringOption(option => option.setName('word').setDescription('اكتب الكلمة المراد حذف ردها').setRequired(true))
-        ),
-
-    // 3. تحكم ماين كرافت (RCON)
-    new SlashCommandBuilder()
-        .setName('mc')
-        .setDescription('🎮 التحكم الكامل بسيرفر ماين كرافت عن بعد')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addStringOption(option => option.setName('command').setDescription('اكتب الأمر الموجه لكنسول السيرفر (مثال: list أو op Name)').setRequired(true)),
-
-    // 4. إعداد التيكت والدعم الفني
-    new SlashCommandBuilder()
-        .setName('setup-ticket')
-        .setDescription('🎫 إنشاء منشور مركز الدعم الفني وتذاكر المساعدة')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
-    // 5. أوامر الإدارة والإشراف والحماية
-    new SlashCommandBuilder()
-        .setName('clear')
-        .setDescription('🧹 تنظيف وغسيل رسائل الشات بسرعة')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addIntegerOption(option => option.setName('amount').setDescription('عدد الرسائل المراد حذفها (1-100)').setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('mute')
-        .setDescription('🔇 كتم عضو مؤقتاً (Timeout)')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .addUserOption(option => option.setName('user').setDescription('اختر العضو المراد كتمه').setRequired(true))
-        .addIntegerOption(option => option.setName('minutes').setDescription('مدة الكتم بالدقائق').setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('kick')
-        .setDescription('🚪 طرد عضو خارج السيرفر')
-        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
-        .addUserOption(option => option.setName('user').setDescription('اختر العضو المراد طرده').setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('ban')
-        .setDescription('🔨 حظر عضو نهائياً من السيرفر')
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-        .addUserOption(option => option.setName('user').setDescription('اختر العضو المراد حظره').setRequired(true)),
-
-    // 6. أوامر عامة وتسلية وإحصائيات
-    new SlashCommandBuilder()
-        .setName('server-info')
-        .setDescription('📊 عرض كافة إحصائيات ومعلومات السيرفر الحالية'),
-
-    new SlashCommandBuilder()
-        .setName('user-info')
-        .setDescription('👤 عرض معلومات بطاقة حسابك المبرمجة')
-        .addUserOption(option => option.setName('user').setDescription('اختر عضواً لرؤية معلوماته (اختياري)')),
-
-    new SlashCommandBuilder()
-        .setName('ping')
-        .setDescription('🏓 فحص سرعة استجابة اتصال البوت بالخوادم'),
-
-    new SlashCommandBuilder()
-        .setName('meme')
-        .setDescription('🎭 إلقاء نكتة أو ميم عشوائي للتسلية وبث روح التفاعل'),
-
-    new SlashCommandBuilder()
-        .setName('help')
-        .setDescription('📜 فتح الدليل الشامل لكافة أنظمة وأوامر البوت')
+    new SlashCommandBuilder().setName('auto-line').setDescription('⚙️ تفعيل/إلغاء الخط التلقائي').setDefaultMemberPermissions(PermissionFlagsBits.Administrator).addChannelOption(o => o.setName('channel').setDescription('اختر الروم').setRequired(true)),
+    new SlashCommandBuilder().setName('auto-respond').setDescription('⚙️ إعداد الرد التلقائي').setDefaultMemberPermissions(PermissionFlagsBits.Administrator).addStringOption(o => o.setName('word').setDescription('الكلمة').setRequired(true)).addStringOption(o => o.setName('reply').setDescription('الرد').setRequired(true)),
+    new SlashCommandBuilder().setName('setup-ticket').setDescription('🎫 منشور مركز الدعم الفني').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder().setName('clear').setDescription('🧹 تنظيف رسائل الشات').setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages).addIntegerOption(o => o.setName('amount').setDescription('العدد (1-100)').setRequired(true)),
+    new SlashCommandBuilder().setName('ban').setDescription('🔨 حظر عضو نهائياً (باند)').setDefaultMemberPermissions(PermissionFlagsBits.BanMembers).addUserOption(o => o.setName('user').setDescription('العضو').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('السبب')),
+    new SlashCommandBuilder().setName('kick').setDescription('🚪 طرد عضو خارج السيرفر').setDefaultMemberPermissions(PermissionFlagsBits.KickMembers).addUserOption(o => o.setName('user').setDescription('العضو').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('السبب')),
+    new SlashCommandBuilder().setName('mute').setDescription('🔇 كتم عضو مؤقتاً (Timeout)').setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers).addUserOption(o => o.setName('user').setDescription('العضو').setRequired(true)).addIntegerOption(o => o.setName('minutes').setDescription('المدّة بالدقائق').setRequired(true)),
+    new SlashCommandBuilder().setName('unmute').setDescription('🔊 فك الكتم عن عضو').setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers).addUserOption(o => o.setName('user').setDescription('العضو').setRequired(true)),
+    new SlashCommandBuilder().setName('warn').setDescription('⚠️ تحذير عضو داخل السيرفر').setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers).addUserOption(o => o.setName('user').setDescription('العضو').setRequired(true)).addStringOption(o => o.setName('reason').setDescription('السبب').setRequired(true)),
+    new SlashCommandBuilder().setName('lock').setDescription('🔒 إغلاق الروم الحالية').setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    new SlashCommandBuilder().setName('unlock').setDescription('🔓 فتح الروم المغلقة').setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    // 📢 أمر البرودكاست المطور الجديد
+    new SlashCommandBuilder().setName('bc').setDescription('📢 إرسال برودكاست (رسالة جماعية)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addStringOption(o => o.setName('type').setDescription('نوع البرودكاست').setRequired(true).addChoices({ name: 'في الخاص لكل الأعضاء (DM)', value: 'dm' }, { name: 'في كل رومات السيرفر (Channels)', value: 'embed' }))
+        .addStringOption(o => o.setName('message').setDescription('اكتب نص رسالة الإعلان هنا').setRequired(true))
 ];
 
 client.once('ready', async () => {
     console.log(`✅ [Bot Active] Logged in as ${client.user.tag}`);
-    
-    // تحديث الحالة التلقائية للبوت بناءً على الأعضاء
-    setInterval(() => {
-        const totalMembers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
-        client.user.setActivity(`${totalMembers} بطل في CyberSMP 🛡️`, { type: ActivityType.Watching });
-    }, 60000);
-
-    // تسجيل الأوامر تلقائياً
     const rest = new REST({ version: '10' }).setToken(client.token);
     try {
-        console.log('⏳ جاري تحديث الـ Slash Commands الشاملة...');
         await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-        console.log('🎉 تم تسجيل كافة الأكواد والأنظمة المتكاملة بنجاح!');
-    } catch (error) {
-        console.error('❌ خطأ في تسجيل الأوامر الشاملة:', error);
-    }
+        console.log('🎉 All Commands with Broadcast Registered Successfully!');
+    } catch (e) { console.error(e); }
 });
 
-// =============================================================
-// ⚡ معالجة وإدارة كافة الأوامر (Interaction Handlers)
-// =============================================================
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+client.on('interactionCreate', async i => {
+    if (i.isChatInputCommand()) {
+        const user = i.options.getUser('user');
+        const reason = i.options.getString('reason') || 'بدون سبب محدد';
+        const member = user ? i.guild.members.cache.get(user.id) : null;
 
-    const { commandName, options } = interaction;
-
-    // 🟢 [أوامر الأوتو لاين]
-    if (commandName === 'auto-line') {
-        const subcommand = options.getSubcommand();
-        const channel = options.getChannel('channel');
-
-        if (subcommand === 'set') {
-            autoLineChannels.add(channel.id);
-            await interaction.reply({ content: `✅ تم تفعيل **الخط التلقائي** بنجاح في روم: ${channel}`, ephemeral: true });
-        } else if (subcommand === 'remove') {
-            autoLineChannels.delete(channel.id);
-            await interaction.reply({ content: `❌ تم إلغاء تفعيل **الخط التلقائي** من روم: ${channel}`, ephemeral: true });
+        if (i.commandName === 'auto-line') {
+            const ch = i.options.getChannel('channel');
+            if (autoLineChannels.has(ch.id)) { autoLineChannels.delete(ch.id); await i.reply({ content: `❌ تم إلغاء الخط من روم: ${ch}`, ephemeral: true }); } 
+            else { autoLineChannels.add(ch.id); await i.reply({ content: `✅ تم تفعيل الخط في روم: ${ch}`, ephemeral: true }); }
         }
-    }
-
-    // 🟢 [أوامر الرد التلقائي]
-    if (commandName === 'auto-respond') {
-        const subcommand = options.getSubcommand();
+        if (i.commandName === 'auto-respond') {
+            const w = i.options.getString('word').toLowerCase().trim();
+            autoResponses.set(w, i.options.getString('reply'));
+            await i.reply({ content: `✅ تم ضبط الرد لـ \`${w}\``, ephemeral: true });
+        }
+        if (i.commandName === 'clear') {
+            const amt = i.options.getInteger('amount');
+            await i.channel.bulkDelete(amt, true);
+            await i.reply({ content: `🧹 تم مسح **${amt}** رسالة بنجاح!`, ephemeral: true });
+        }
+        if (i.commandName === 'ban') {
+            if (!member.bannable) return i.reply({ content: '❌ لا يمكنني حظر هذا العضو!', ephemeral: true });
+            await member.ban({ reason }); await i.reply({ content: `🔨 تم حظر **${user.tag}**. السبب: ${reason}` });
+        }
+        if (i.commandName === 'kick') {
+            if (!member.kickable) return i.reply({ content: '❌ لا يمكنني طرد هذا العضو!', ephemeral: true });
+            await member.kick(reason); await i.reply({ content: `🚪 تم طرد **${user.tag}**. السبب: ${reason}` });
+        }
+        if (i.commandName === 'mute') {
+            const min = i.options.getInteger('minutes'); await member.timeout(min * 60 * 1000, reason);
+            await i.reply({ content: `🔇 تم كتم **${user.tag}** لمدة ${min} دقيقة. السبب: ${reason}` });
+        }
+        if (i.commandName === 'unmute') { await member.timeout(null); await i.reply({ content: `🔊 تم فك الكتم عن **${user.tag}**.` }); }
+        if (i.commandName === 'warn') {
+            const emb = new EmbedBuilder().setColor('#FFCC00').setTitle('⚠️ تحذير إداري جديد').setDescription(`العضو: ${user}\n**السبب:** ${reason}\n**بواسطة:** ${i.user}`);
+            await i.reply({ embeds: [emb] });
+        }
+        if (i.commandName === 'lock') { await i.channel.permissionOverwrites.edit(i.guild.id, { SendMessages: false }); await i.reply({ content: '🔒 تم إغلاق الروم الحالية.' }); }
+        if (i.commandName === 'unlock') { await i.channel.permissionOverwrites.edit(i.guild.id, { SendMessages: null }); await i.reply({ content: '🔓 تم فتح الروم الحالية.' }); }
+        if (i.commandName === 'setup-ticket') {
+            const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket').setLabel('فتح تذكرة دعم').setStyle(ButtonStyle.Success).setEmoji('🎫'));
+            const emb = new EmbedBuilder().setColor('#5865F2').setTitle('📞 مركز الدعم الفني لـ CyberSMP').setDescription('اضغط بالأسفل لفتح تذكرة سرية مع الإدارة.');
+            await i.reply({ content: '✅ تم إرسال المنشور', ephemeral: true }); await i.channel.send({ embeds: [emb], components: [row] });
+        }
         
-        if (subcommand === 'set') {
-            const word = options.getString('word').toLowerCase().trim();
-            const reply = options.getString('reply');
-            autoResponses.set(word, reply);
-            await interaction.reply({ content: `✅ تم إضافة الرد بنجاح!\n**الكلمة المفتاحية:** \`${word}\`\n**الرد المخصص:** ${reply}`, ephemeral: true });
-        } else if (subcommand === 'remove') {
-            const word = options.getString('word').toLowerCase().trim();
-            if (autoResponses.has(word)) {
-                autoResponses.delete(word);
-                await interaction.reply({ content: `❌ تم حذف الرد التلقائي المخصص للكلمة: \`${word}\` بنجاح.`, ephemeral: true });
-            } else {
-                await interaction.reply({ content: `⚠️ الكلمة \`${word}\` غير مسجلة في قائمة الردود التلقائية أصلاً!`, ephemeral: true });
+        // 📢 تشغيل أمر البرودكاست (BC) المطور
+        if (i.commandName === 'bc') {
+            const type = i.options.getString('type');
+            const msgStr = i.options.getString('message');
+            await i.reply({ content: '⏳ جاري إرسال البرودكاست الآن، يرجى الانتظار...', ephemeral: true });
+
+            if (type === 'dm') {
+                const members = await i.guild.members.fetch();
+                let successCount = 0;
+                for (const [id, m] of members) {
+                    if (m.user.bot) continue;
+                    try {
+                        await m.send(`📢 **برودكاست من سيرفر ${i.guild.name}:**\n\n${msgStr}`);
+                        successCount++;
+                    } catch (e) { /* متجاهل إذا كان الخاص مغلق */ }
+                }
+                await i.followUp({ content: `✅ تم إرسال البرودكاست في الخاص بنجاح لـ **${successCount}** عضو!`, ephemeral: true });
+            } 
+            else if (type === 'embed') {
+                const channels = i.guild.channels.cache.filter(c => c.type === 0); // رومات كتابية فقط
+                const emb = new EmbedBuilder().setColor('#FF0055').setTitle('📢 إعلان رسمي هام').setDescription(msgStr).setFooter({ text: `بواسطة: ${i.user.username}` }).setTimestamp();
+                for (const [id, ch] of channels) {
+                    try { await ch.send({ embeds: [emb] }); } catch (e) { /* متجاهل إذا لم تكن هناك صلاحية كتابة */ }
+                }
+                await i.followUp({ content: '✅ تم نشر البرودكاست في جميع الرومات المتاحة بنجاح!', ephemeral: true });
             }
         }
     }
-
-    // 🟢 [أمر ماين كرافت]
-    if (commandName === 'mc') {
-        const mcCommand = options.getString('command');
-        await interaction.deferReply(); 
-
-        try {
-            const rcon = await Rcon.connect({
-                host: 'ضع_هنا_IP_سيرفر_ماين_كرافت',
-                port: 25575,
-                password: 'ضع_هنا_باسورد_الـRCON'
-            });
-            const response = await rcon.send(mcCommand);
-            await rcon.end();
-            await interaction.editReply(`🎮 **استجابة كنسول السيرفر:**\n\`\`\`text\n${response || 'تم تنفيذ الأمر البرمجي بنجاح وبدون مخرجات نصية.'}\n\`\`\``);
-        } catch (err) {
-            await interaction.editReply('❌ فشل الاتصال بالسيرفر. تأكد من تفعيل خيار الـ RCON في ملف السيرفر وبيانات الاتصال.');
-        }
-    }
-
-    // 🟢 [أمر إنشاء منشور التيكت]
-    if (commandName === 'setup-ticket') {
-        const row = new ActionRowBuilder().addComponents(
+    
+    if (i.isButton() && i.customId === 'ticket') {
+        const cName = `ticket-${i.user.username}`.toLowerCase();
+        if (i.guild.channels.cache.find(c => c.name === cName)) return i.reply({ content: '❌ لديك تذكرة مفتوحة بالفعل!', ephemeral: true });
+        const ch = await i.guild.channels.create({ name: cName, type: 0, permissionOverwrites: [{ id: i.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, { id: i.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }] });
