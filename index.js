@@ -144,4 +144,5 @@ client.on('messageCreate', async message => {
     }
 });
 
-client.login('ضع_توكن_البوت_هنا');
+client.login(process.env.DISCORD_TOKEN);
+
